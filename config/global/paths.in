@@ -138,6 +138,14 @@ config STRIP_TARGET_TOOLCHAIN_EXECUTABLES
       executables, and may install libraries with unneeded or debugging
       sections stripped. 
 
+config STRIP_TARGET_TOOLCHAIN_LIBRARIES
+    bool
+    prompt "Strip target toolchain libraries"
+    default y
+    help
+      Ensures that the target toolchain libraries are stripped of any unneeded
+      or debugging information.
+
 config TARBALL_RESULT
     bool
     depends on EXPERIMENTAL
