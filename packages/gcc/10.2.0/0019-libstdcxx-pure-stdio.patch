@@ -1,0 +1,257 @@
+From 9febb5b27d822932f3ef3c4deead374f20353ea5 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Tue, 3 Nov 2020 23:03:32 -0800
+Subject: [PATCH] libstdc++: Add --enable-pure-stdio-libstdcxx option
+
+This option directs the library to only use simple stdio APIs instead
+of using fileno to get the file descriptor for use with POSIX APIs.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ libstdc++-v3/acinclude.m4                  | 13 ++++++
+ libstdc++-v3/config.h.in                   |  3 ++
+ libstdc++-v3/config/io/basic_file_stdio.cc | 46 +++++++++++++++++++---
+ libstdc++-v3/configure                     | 23 +++++++++++
+ libstdc++-v3/configure.ac                  |  1 +
+ 5 files changed, 81 insertions(+), 5 deletions(-)
+
+diff --git a/libstdc++-v3/acinclude.m4 b/libstdc++-v3/acinclude.m4
+index ee5e0336f2c..bd147c4dd20 100644
+--- a/libstdc++-v3/acinclude.m4
++++ b/libstdc++-v3/acinclude.m4
+@@ -2853,6 +2853,19 @@ AC_DEFUN([GLIBCXX_ENABLE_CSTDIO], [
+ ])
+ 
+ 
++dnl
++dnl Check whether to use 'pure' stdio (no POSIX calls at all)
++dnl
++dnl Default is 'no'
++AC_DEFUN([GLIBCXX_ENABLE_PURE_STDIO], [
++  GLIBCXX_ENABLE(libstdcxx-pure-stdio,$1,,[use only stdio APIs])
++  if test $enable_libstdcxx_pure_stdio = yes; then
++    AC_DEFINE(_GLIBCXX_USE_PURE_STDIO, 1,
++              [Define to restrict code to stdio APIs.])
++  fi
++])
++
++
+ dnl
+ dnl Check for "unusual" flags to pass to the compiler while building.
+ dnl
+diff --git a/libstdc++-v3/config.h.in b/libstdc++-v3/config.h.in
+index 8940e0c7acd..925ba917dac 100644
+--- a/libstdc++-v3/config.h.in
++++ b/libstdc++-v3/config.h.in
+@@ -1012,6 +1012,9 @@
+ /* Define if POSIX read/write locks are available in <gthr.h>. */
+ #undef _GLIBCXX_USE_PTHREAD_RWLOCK_T
+ 
++/* Define to restrict code to stdio APIs. */
++#undef _GLIBCXX_USE_PURE_STDIO
++
+ /* Define if /dev/random and /dev/urandom are available for the random_device
+    of TR1 (Chapter 5.1). */
+ #undef _GLIBCXX_USE_RANDOM_TR1
+diff --git a/libstdc++-v3/config/io/basic_file_stdio.cc b/libstdc++-v3/config/io/basic_file_stdio.cc
+index ba830fb9e97..d31da8497f4 100644
+--- a/libstdc++-v3/config/io/basic_file_stdio.cc
++++ b/libstdc++-v3/config/io/basic_file_stdio.cc
+@@ -111,13 +111,21 @@ namespace
+ 
+   // Wrapper handling partial write.
+   static std::streamsize
++#ifdef _GLIBCXX_USE_PURE_STDIO
++  xwrite(FILE *__file, const char* __s, std::streamsize __n)
++#else
+   xwrite(int __fd, const char* __s, std::streamsize __n)
++#endif
+   {
+     std::streamsize __nleft = __n;
+ 
+     for (;;)
+       {
++#ifdef _GLIBCXX_USE_PURE_STDIO
++	const std::streamsize __ret = fwrite(__file, 1, __nleft, __file);
++#else
+ 	const std::streamsize __ret = write(__fd, __s, __nleft);
++#endif
+ 	if (__ret == -1L && errno == EINTR)
+ 	  continue;
+ 	if (__ret == -1L)
+@@ -133,7 +141,7 @@ namespace
+     return __n - __nleft;
+   }
+ 
+-#ifdef _GLIBCXX_HAVE_WRITEV
++#if defined(_GLIBCXX_HAVE_WRITEV) && !defined(_GLIBCXX_USE_PURE_STDIO)
+   // Wrapper handling partial writev.
+   static std::streamsize
+   xwritev(int __fd, const char* __s1, std::streamsize __n1,
+@@ -286,9 +294,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   __basic_file<char>::is_open() const throw ()
+   { return _M_cfile != 0; }
+ 
++#ifndef _GLIBCCXX_USE_PURE_STDIO
+   int
+   __basic_file<char>::fd() throw ()
+   { return fileno(_M_cfile); }
++#endif
+ 
+   __c_file*
+   __basic_file<char>::file() throw ()
+@@ -315,28 +325,46 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   {
+     streamsize __ret;
+     do
++#ifdef _GLIBCXX_USE_PURE_STDIO
++      __ret = fread(__s, 1, __n, this->file());
++#else
+       __ret = read(this->fd(), __s, __n);
++#endif
+     while (__ret == -1L && errno == EINTR);
+     return __ret;
+   }
+ 
+   streamsize
+   __basic_file<char>::xsputn(const char* __s, streamsize __n)
+-  { return xwrite(this->fd(), __s, __n); }
++  {
++#ifdef _GLIBCXX_USE_PURE_STDIO
++    return xwrite(this->file(), __s, __n);
++#else
++    return xwrite(this->fd(), __s, __n);
++#endif
++  }
+ 
+   streamsize
+   __basic_file<char>::xsputn_2(const char* __s1, streamsize __n1,
+ 			       const char* __s2, streamsize __n2)
+   {
+     streamsize __ret = 0;
+-#ifdef _GLIBCXX_HAVE_WRITEV
++#if defined(_GLIBCXX_HAVE_WRITEV) && !defined(_GLIBCXX_USE_PURE_STDIO)
+     __ret = xwritev(this->fd(), __s1, __n1, __s2, __n2);
+ #else
+     if (__n1)
++#ifdef _GLIBCXX_USE_PURE_STDIO
++      __ret = xwrite(this->file(), __s1, __n1);
++#else
+       __ret = xwrite(this->fd(), __s1, __n1);
++#endif
+ 
+     if (__ret == __n1)
++#ifdef _GLIBCXX_USE_PURE_STDIO
++      __ret += xwrite(this->file(), __s2, __n2);
++#else
+       __ret += xwrite(this->fd(), __s2, __n2);
++#endif
+ #endif
+     return __ret;
+   }
+@@ -350,7 +378,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     if (__off > numeric_limits<off_t>::max()
+ 	|| __off < numeric_limits<off_t>::min())
+       return -1L;
++#ifdef _GLIBCXX_USE_PURE_STDIO
++    return fseek(this->file(), __off, __way);
++#else
+     return lseek(this->fd(), __off, __way);
++#endif
+ #endif
+   }
+ 
+@@ -361,7 +393,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   streamsize
+   __basic_file<char>::showmanyc()
+   {
+-#ifndef _GLIBCXX_NO_IOCTL
++#if !defined(_GLIBCXX_NO_IOCTL) && !defined(_GLIBCXX_USE_PURE_STDIO)
+ #ifdef FIONREAD
+     // Pipes and sockets.
+     int __num = 0;
+@@ -371,7 +403,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ #endif
+ #endif
+ 
+-#ifdef _GLIBCXX_HAVE_POLL
++#if defined(_GLIBCXX_HAVE_POLL) && !defined(_GLIBCXX_USE_PURE_STDIO)
+     // Cheap test.
+     struct pollfd __pfd[1];
+     __pfd[0].fd = this->fd();
+@@ -395,8 +427,12 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     struct stat __buffer;
+     const int __err = fstat(this->fd(), &__buffer);
+     if (!__err && _GLIBCXX_ISREG(__buffer.st_mode))
++#ifdef _GLIBCXX_USE_PURE_STDIO
++      return __buffer.st_size - fseek(this->file(), 0, ios_base::cur);
++#else
+       return __buffer.st_size - lseek(this->fd(), 0, ios_base::cur);
+ #endif
++#endif
+ #endif
+     return 0;
+   }
+diff --git a/libstdc++-v3/configure b/libstdc++-v3/configure
+index 9f9c5a2419a..42a52a30cfe 100755
+--- a/libstdc++-v3/configure
++++ b/libstdc++-v3/configure
+@@ -927,6 +927,7 @@ enable_extern_template
+ with_python_dir
+ enable_werror
+ enable_vtable_verify
++enable_libstdcxx_pure_stdio
+ enable_libstdcxx_time
+ enable_tls
+ enable_rpath
+@@ -1627,6 +1628,8 @@ Optional Features:
+                           enable extern template [default=yes]
+   --enable-werror         turns on -Werror [default=no]
+   --enable-vtable-verify  enable vtable verify [default=no]
++  --enable-libstdcxx-pure-stdio
++                          use only stdio APIs [default=]
+   --enable-libstdcxx-time[=KIND]
+                           use KIND for check type [default=auto]
+   --enable-tls            Use thread-local storage [default=yes]
+@@ -18708,6 +18711,26 @@ fi
+ 
+ 
+ 
++   # Check whether --enable-libstdcxx-pure-stdio was given.
++if test "${enable_libstdcxx_pure_stdio+set}" = set; then :
++  enableval=$enable_libstdcxx_pure_stdio;
++      case "$enableval" in
++       yes|no) ;;
++       *) as_fn_error $? "Argument to enable/disable libstdcxx-pure-stdio must be yes or no" "$LINENO" 5 ;;
++      esac
++
++else
++  enable_libstdcxx_pure_stdio=
++fi
++
++
++  if test $enable_libstdcxx_pure_stdio = yes; then
++
++$as_echo "#define _GLIBCXX_USE_PURE_STDIO 1" >>confdefs.h
++
++  fi
++
++
+ # Checks for operating systems support that doesn't require linking.
+ 
+ 
+diff --git a/libstdc++-v3/configure.ac b/libstdc++-v3/configure.ac
+index 699e55fd829..ca6749c8f63 100644
+--- a/libstdc++-v3/configure.ac
++++ b/libstdc++-v3/configure.ac
+@@ -179,6 +179,7 @@ GLIBCXX_ENABLE_EXTERN_TEMPLATE([yes])
+ GLIBCXX_ENABLE_PYTHON
+ GLIBCXX_ENABLE_WERROR([no])
+ GLIBCXX_ENABLE_VTABLE_VERIFY([no])
++GLIBCXX_ENABLE_PURE_STDIO
+ 
+ # Checks for operating systems support that doesn't require linking.
+ GLIBCXX_CHECK_STDIO_PROTO
+-- 
+2.28.0
+

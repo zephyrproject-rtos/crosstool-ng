@@ -280,7 +280,8 @@ do_cc_core_pass_2() {
 #   cflags              : cflags to use                             : string    : (empty)
 #   ldflags             : ldflags to use                            : string    : (empty)
 #   build_step          : build step 'core1', 'core2', 'gcc_build',
-#                         'libstdcxx_nano' or 'gcc_host'            : string    : (none)
+#                         'libstdcxx_nano', libstdcxx_picolibc'
+#                         or 'gcc_host'                             : string    : (none)
 # Usage: do_gcc_core_backend mode=[static|shared|baremetal] build_libgcc=[yes|no] build_staticlinked=[yes|no]
 do_gcc_core_backend() {
     local mode
@@ -335,8 +336,17 @@ do_gcc_core_backend() {
             # to inhibit the libiberty and libgcc tricks later on
             build_libgcc=no
             ;;
+        libstdcxx_picolibc)
+            CT_DoLog EXTRA "Configuring libstdc++ picolibc"
+            extra_config+=("--with-headers=${CT_SYSROOT_DIR}/picolibc/include")
+	    extra_config+=("--enable-libstdcxx-pure-stdio")
+            extra_user_config=( "${CT_CC_GCC_EXTRA_CONFIG_ARRAY[@]}" )
+            log_txt="libstdc++ picolibc library"
+            # to inhibit the libiberty and libgcc tricks later on
+            build_libgcc=no
+            ;;
         *)
-            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build', 'gcc_host' or 'libstdcxx_nano', not '${build_step:-(empty)}'"
+            CT_Abort "Internal Error: 'build_step' must be one of: 'core1', 'core2', 'gcc_build', 'gcc_host', 'libstdcxx_nano' or 'libstdcxx_picolibc', not '${build_step:-(empty)}'"
             ;;
     esac
 
@@ -456,7 +466,8 @@ do_gcc_core_backend() {
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
-       [ "${build_step}" = "libstdcxx_nano" ]; then
+       [ "${build_step}" = "libstdcxx_nano" ] || \
+       [ "${build_step}" = "libstdcxx_picolibc" ]; then
         extra_config+=("--enable-target-optspace")
     fi
     if [ "${CT_CC_GCC_DISABLE_PCH}" = "y" ]; then
@@ -951,6 +962,74 @@ libstdcxx_nano_copy_multilibs()
 }
 
 #------------------------------------------------------------------------------
+# Build an additional target libstdc++ with "-Os" (optimise for speed) option
+# flag for libstdc++ "picolibc" variant.
+do_cc_libstdcxx_picolibc()
+{
+    local -a final_opts
+    local final_backend
+
+    if [ "${CT_CC_GCC_LIBSTDCXX_PICOLIBC}" = "y" ]; then
+        final_opts+=( "host=${CT_HOST}" )
+        final_opts+=( "prefix=${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc/target-libs" )
+        final_opts+=( "complibs=${CT_HOST_COMPLIBS_DIR}" )
+        final_opts+=( "cflags=${CT_CFLAGS_FOR_HOST}" )
+        final_opts+=( "ldflags=${CT_LDFLAGS_FOR_HOST}" )
+        final_opts+=( "lang_list=$( cc_gcc_lang_list )" )
+        final_opts+=( "build_step=libstdcxx_picolibc" )
+
+        if [ "${CT_BARE_METAL}" = "y" ]; then
+            final_opts+=( "mode=baremetal" )
+            final_opts+=( "build_libgcc=yes" )
+            final_opts+=( "build_libstdcxx=yes" )
+            final_opts+=( "build_libgfortran=yes" )
+            if [ "${CT_STATIC_TOOLCHAIN}" = "y" ]; then
+                final_opts+=( "build_staticlinked=yes" )
+            fi
+            final_backend=do_gcc_core_backend
+        else
+            final_backend=do_gcc_backend
+        fi
+
+        CT_DoStep INFO "Installing libstdc++ picolibc"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc"
+        "${final_backend}" "${final_opts[@]}"
+        CT_Popd
+
+        # GCC installs stuff (including libgcc) into its own /lib dir,
+        # outside of sysroot, breaking linking with -static-libgcc.
+        # Fix up by moving the libraries into the sysroot.
+        if [ "${CT_USE_SYSROOT}" = "y" ]; then
+            CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final-movelibs"
+            CT_IterateMultilibs gcc_movelibs movelibs
+            CT_Popd
+        fi
+
+        # Copy lib{std,sup}c++ as picolibc libraries
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc-copy"
+        CT_IterateMultilibs libstdcxx_picolibc_copy_multilibs copylibs
+        CT_Popd
+
+        CT_EndStep
+    fi
+}
+
+libstdcxx_picolibc_copy_multilibs()
+{
+    local picolibc_lib_dir="${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc/target-libs"
+    local multi_flags multi_dir multi_os_dir multi_os_dir_gcc multi_root multi_index multi_count
+
+    for arg in "$@"; do
+        eval "${arg// /\\ }"
+    done
+
+    CT_DoExecLog ALL cp -f "${picolibc_lib_dir}/${CT_TARGET}/lib/${multi_dir}/libstdc++.a" \
+                           "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libstdc++_picolibc.a"
+    CT_DoExecLog ALL cp -f "${picolibc_lib_dir}/${CT_TARGET}/lib/${multi_dir}/libsupc++.a" \
+                           "${CT_PREFIX_DIR}/${CT_TARGET}/lib/${multi_dir}/libsupc++_picolibc.a"
+}
+
+#------------------------------------------------------------------------------
 # Build the final gcc
 # Usage: do_gcc_backend param=value [...]
 #   Parameter     : Definition                          : Type      : Default
@@ -962,7 +1041,8 @@ libstdcxx_nano_copy_multilibs()
 #   lang_list     : the list of languages to build      : string    : (empty)
 #   build_manuals : whether to build manuals or not     : bool      : no
 #   build_step    : build step 'gcc_build', 'gcc_host',
-#                   or 'libstdcxx_nano'                 : string    : (none)
+#                   'libstdcxx_nano',
+#                   or 'libstdcxx_picolibc'             : string    : (none)
 do_gcc_backend() {
     local host
     local prefix
@@ -985,7 +1065,7 @@ do_gcc_backend() {
         eval "${arg// /\\ }"
     done
 
-    # This function gets called for both final gcc and libstdcxx_nano.
+    # This function gets called for final gcc, libstdcxx_nano and libstdcxx_picolibc.
     case "${build_step}" in
         gcc_build|gcc_host)
             log_txt="final gcc compiler"
@@ -993,8 +1073,11 @@ do_gcc_backend() {
         libstdcxx_nano)
             log_txt="libstdc++ nano library"
             ;;
+        libstdcxx_picolibc)
+            log_txt="libstdc++ picolibc library"
+            ;;
         *)
-            CT_Abort "Internal Error: 'build_step' must be one of: 'gcc_build', 'gcc_host' or 'libstdcxx_nano', not '${build_step:-(empty)}'"
+            CT_Abort "Internal Error: 'build_step' must be one of: 'gcc_build', 'gcc_host', 'libstdcxx_nano' or 'libstdcxx_picolibc', not '${build_step:-(empty)}'"
             ;;
     esac
 
@@ -1142,6 +1225,7 @@ do_gcc_backend() {
     fi
 
     if [ "${CT_CC_GCC_ENABLE_TARGET_OPTSPACE}" = "y" ] || \
+       [ "${build_step}" = "libstdcxx_picolibc" ] || \
        [ "${build_step}" = "libstdcxx_nano" ]; then
         extra_config+=("--enable-target-optspace")
     fi
@@ -1149,7 +1233,8 @@ do_gcc_backend() {
         extra_config+=("--disable-libstdcxx-pch")
     fi
 
-    if [ "${build_step}" = "libstdcxx_nano" ]; then
+    if [ "${build_step}" = "libstdcxx_picolibc" ] || \
+       [ "${build_step}" = "libstdcxx_nano" ]; then
         extra_config+=("-ffunction-sections")
         extra_config+=("-fdata-sections")
         extra_config+=("-fno-exceptions")

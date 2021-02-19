@@ -285,6 +285,7 @@ CT_STEPS := \
             cc_libstdcxx_nano          \
             libc_post_cc               \
             companion_libs_for_target  \
+	    cc_libstdcxx_picolibc      \
             binutils_for_target        \
             debug                      \
             test_suite                 \
