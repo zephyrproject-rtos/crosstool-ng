@@ -258,6 +258,18 @@ do_gdb_backend()
                 ldflags+=" -static-libstdc++"
                 ;;
         esac
+
+        # Disable source-highlight when building with static libstdc++ because
+        # the source-highlight library is enabled by default, and GDB configure
+        # script complains when these two options are simultaneously enabled:
+        #
+        #   configure: error: source highlight is incompatible with
+        #   -static-libstdc++
+        #
+        # This is more of a temporary workaround than a permanent fix -- this
+        # should be reworked to resolve the conflicts in the Kconfig when the
+        # source-highlight support is directly added to crosstool-ng.
+        extra_config+=("--disable-source-highlight")
     fi
 
 
