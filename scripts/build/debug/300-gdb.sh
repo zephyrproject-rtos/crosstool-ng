@@ -56,6 +56,7 @@ do_debug_gdb_build_cross()
         ldflags="${CT_LDFLAGS_FOR_HOST}" \
         prefix="${CT_PREFIX_DIR}" \
         static="${CT_GDB_CROSS_STATIC}" \
+        static_libstdcxx="${CT_GDB_CROSS_STATIC_LIBSTDCXX}" \
         --with-sysroot="${CT_SYSROOT_DIR}"          \
         "${cross_extra_config[@]}"
 
@@ -246,8 +247,17 @@ do_gdb_backend()
         ldflags+=" -static"
     fi
     if [ "${static_libstdcxx}" = "y" ]; then
-        ldflags+=" -static-libgcc"
-        ldflags+=" -static-libstdc++"
+        case "$CT_HOST" in
+            *darwin*)
+                # macOS builds with clang and provides a well known execution
+                # environment, so there is little point in static linking the
+                # C++ runtime library -- ignore this option for now.
+                ;;
+            *)
+                ldflags+=" -static-libgcc"
+                ldflags+=" -static-libstdc++"
+                ;;
+        esac
     fi
 
 
