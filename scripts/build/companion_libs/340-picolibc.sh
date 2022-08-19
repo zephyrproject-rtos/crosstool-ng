@@ -187,6 +187,20 @@ do_picolibc_for_target() {
     CT_Popd
     CT_EndStep
     do_cc_libstdcxx_picolibc
+
+    if [ "${CT_STRIP_TARGET_TOOLCHAIN_LIBRARIES}" = "y" ]; then
+
+	CT_DoStep INFO "Stripping Picolibc library"
+
+	CT_Pushd "${CT_PREFIX_DIR}"
+
+	strip_target_lib "${CT_PREFIX_DIR}/picolibc/${CT_TARGET}/lib" "*.a"
+	strip_target_lib "${CT_PREFIX_DIR}/picolibc/${CT_TARGET}/lib" "*.o"
+
+	CT_Popd
+
+	CT_EndStep
+    fi
 }
 
 fi # CT_COMP_LIBS_PICOLIBC
