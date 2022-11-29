@@ -71,6 +71,7 @@ c = '${CT_TARGET}-${CT_CC}'
 ar = '${CT_TARGET}-ar'
 as = '${CT_TARGET}-as'
 strip = '${CT_TARGET}-strip'
+objcopy = '${CT_TARGET}-objcopy'
 
 [host_machine]
 system = '${CT_TARGET_VENDOR}'
