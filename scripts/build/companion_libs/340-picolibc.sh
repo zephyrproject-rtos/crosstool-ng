@@ -20,7 +20,7 @@ do_picolibc_common_install() {
     CT_DoLog EXTRA "Configuring C library"
 
     # Multilib is the default, so if it is not enabled, disable it.
-    if [ "${CT_MULTILIB}" != "y" ]; then
+    if [ "${CT_MULTILIB_ANY}" != "y" ]; then
         picolibc_opts+=("-Dmultilib=false")
     fi
 
@@ -65,6 +65,17 @@ NANO_MALLOC:newlib-nano-malloc
 
     [ "${CT_LIBC_PICOLIBC_LTO}" = "y" ] && \
         CT_LIBC_PICOLIBC_TARGET_CFLAGS="${CT_LIBC_PICOLIBC_TARGET_CFLAGS} -flto"
+
+    # Build picolibc in release mode when doing multilib-space mode as
+    # we want the default to be release, not minsize; you'll still get
+    # the -Os version if you link with -Os on the command line due to
+    # multilib
+
+    if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" -a "${CT_MULTILIB_SPACE}" != "y" ]; then
+        buildtype="minsize"
+    else
+        buildtype="release"
+    fi
 
     cflags_for_target="${CT_ALL_TARGET_CFLAGS} ${CT_LIBC_PICOLIBC_TARGET_CFLAGS}"
 
@@ -113,9 +124,10 @@ EOF
     fi
 
     CT_DoExecLog CFG                                               \
-    meson                                                          \
+    meson setup                                                    \
         --cross-file picolibc-cross.txt                            \
         --prefix="${picolibc_sysroot_dir}"                         \
+	--buildtype="${buildtype}"                                 \
         -Dincludedir=include                                       \
         -Dlibdir="${picolibc_lib_dir}"                             \
         -Dspecsdir="${CT_SYSROOT_DIR}/lib"                         \
