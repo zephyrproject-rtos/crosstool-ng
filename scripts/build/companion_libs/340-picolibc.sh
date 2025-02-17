@@ -27,8 +27,10 @@ do_picolibc_extract() {
 # flag for libstdc++ "picolibc" variant.
 do_cc_libstdcxx_picolibc()
 {
+    local variant="$1"
     local -a final_opts
     local final_backend
+    local suffix=
 
     if [ "${CT_LIBC_PICOLIBC_GCC_LIBSTDCXX}" = "y" ]; then
         final_opts+=( "host=${CT_HOST}" )
@@ -46,6 +48,10 @@ do_cc_libstdcxx_picolibc()
         if [ "${CT_LIBC_PICOLIBC_ENABLE_TARGET_OPTSPACE}" = "y" ]; then
             final_opts+=( "enable_optspace=yes" )
         fi
+        if [ "${variant}" = "noexcept" ]; then
+            final_opts+=( "extra_cxxflags_for_target=-fno-exceptions" )
+            suffix="-noexcept"
+        fi
 
         if [ "${CT_BARE_METAL}" = "y" ]; then
             final_opts+=( "mode=baremetal" )
@@ -61,8 +67,9 @@ do_cc_libstdcxx_picolibc()
         fi
 
         CT_DoStep INFO "Installing libstdc++ picolibc"
-        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc"
+        CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc${suffix}"
         "${final_backend}" "${final_opts[@]}"
+        # TODO: suffix
         CT_Popd
 
         CT_EndStep
@@ -169,6 +176,10 @@ EOF
     CT_EndStep
 
     do_cc_libstdcxx_picolibc
+
+    if [ "${CT_LIBC_PICOLIBC_GCC_LIBSTDCXX_NOEXCEPT}" = "y" ]; then
+      do_cc_libstdcxx_picolibc noexcept
+    fi
 
     if [ "${CT_STRIP_TARGET_TOOLCHAIN_LIBRARIES}" = "y" ]; then
 

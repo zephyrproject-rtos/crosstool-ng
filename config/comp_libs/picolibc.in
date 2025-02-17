@@ -20,6 +20,16 @@ config LIBC_PICOLIBC_GCC_LIBSTDCXX
       picolibc. This version is linked when "--specs=picolibcpp.specs"
       is specified.
 
+config LIBC_PICOLIBC_GCC_LIBSTDCXX_NOEXCEPT
+    bool
+    prompt "Compile libstdc++ picolibc variant with exceptions disabled"
+    default y
+    depends on CC_LANG_CXX
+    help
+      This option compiles an additional target libstdc++ for use with
+      picolibc. This version is linked when "--specs=picolibcpp_noexcept.specs"
+      is specified.
+
 config LIBC_PICOLIBC_CXA_ATEXIT
     def_bool y
     select LIBC_PROVIDES_CXA_ATEXIT
