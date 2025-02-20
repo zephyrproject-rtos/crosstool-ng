@@ -69,7 +69,6 @@ do_cc_libstdcxx_picolibc()
         CT_DoStep INFO "Installing libstdc++ picolibc"
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-libstdcxx-picolibc${suffix}"
         "${final_backend}" "${final_opts[@]}"
-        # TODO: suffix
         CT_Popd
 
         CT_EndStep
@@ -175,11 +174,13 @@ EOF
     CT_Popd
     CT_EndStep
 
-    do_cc_libstdcxx_picolibc
-
     if [ "${CT_LIBC_PICOLIBC_GCC_LIBSTDCXX_NOEXCEPT}" = "y" ]; then
       do_cc_libstdcxx_picolibc noexcept
+      picolibc_add_suffix_to_lib "${CT_PREFIX_DIR}/picolibc/${CT_TARGET}/lib" "libstdc++.a" "noexcept"
+      picolibc_add_suffix_to_lib "${CT_PREFIX_DIR}/picolibc/${CT_TARGET}/lib" "libsupc++.a" "noexcept"
     fi
+
+    do_cc_libstdcxx_picolibc
 
     if [ "${CT_STRIP_TARGET_TOOLCHAIN_LIBRARIES}" = "y" ]; then
 
@@ -194,6 +195,19 @@ EOF
 
 	CT_EndStep
     fi
+}
+
+picolibc_add_suffix_to_lib() {
+    local lib_dir="${1}"
+    local lib_name="${2}"
+    local suffix="${3}"
+    local filename extension
+
+    find "${lib_dir}" -name "${lib_name}" | while read target_lib; do
+      filename=${target_lib%.*}
+      extension=${target_lib##*.}
+      CT_DoExecLog ALL mv "${target_lib}" "${filename}_${suffix}.${extension}"
+    done
 }
 
 fi
