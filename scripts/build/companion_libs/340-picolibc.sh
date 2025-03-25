@@ -84,29 +84,27 @@ do_picolibc_for_target() {
         picolibc_opts+=("-Dmultilib=false")
     fi
 
-    yn_args="IO_C99FMT:io-c99-formats
-IO_LL:io-long-long
-REGISTER_FINI:newlib-register-fini
-NANO_MALLOC:newlib-nano-malloc
-ATEXIT_DYNAMIC_ALLOC:newlib-atexit-dynamic-alloc
-GLOBAL_ATEXIT:newlib-global-atexit
-LITE_EXIT:lite-exit
-MULTITHREAD:newlib-multithread
-RETARGETABLE_LOCKING:newlib-retargetable-locking
-    "
+    if [ "${CT_LIBC_PICOLIBC_IO_C99FMT}" = "y" ]; then
+	picolibc_opts+=("-Dio-c99-formats=true")
+    else
+	picolibc_opts+=("-Dio-c99-formats=false")
+    fi
 
-    for ynarg in $yn_args; do
-        var="CT_LIBC_PICOLIBC_${ynarg%:*}"
-        eval var=\$${var}
-        argument=${ynarg#*:}
-
-
-        if [ "${var}" = "y" ]; then
-            picolibc_opts+=( "-D$argument=true" )
-        else
-            picolibc_opts+=( "-D$argument=false" )
-        fi
-    done
+    if [ "${CT_LIBC_PICOLIBC_MULTITHREAD}" = "y" ]; then
+	if grep -q single-thread "${CT_SRC_DIR}/picolibc/meson_options.txt"; then
+	    picolibc_opts+=("-Dsingle-thread=false")
+	else
+	    picolibc_opts+=("-Dnewlib-retargetable-locking=true")
+	    picolibc_opts+=("-Dnewlib-multithread=true")
+	fi
+    else
+	if grep -q single-thread "${CT_SRC_DIR}/picolibc/meson_options.txt"; then
+	    picolibc_opts+=("-Dsingle-thread=true")
+	else
+	    picolibc_opts+=("-Dnewlib-retargetable-locking=false")
+	    picolibc_opts+=("-Dnewlib-multithread=false")
+	fi
+    fi
 
     [ "${CT_USE_SYSROOT}" = "y" ] && \
         picolibc_opts+=( "-Dsysroot-install=true" )
