@@ -411,7 +411,7 @@ do_gcc_core_backend() {
 
     if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
         extra_config+=("--with-default-libc=picolibc")
-        extra_config+=("--enable-stdio=pure")
+        extra_config+=("--enable-cstdio=stdio_pure")
         if [ "${CT_PICOLIBC_older_than_1_8}" = "y" ]; then
             extra_config+=("--disable-wchar_t")
         fi
@@ -1108,7 +1108,7 @@ do_gcc_backend() {
 
     if [ "${CT_LIBC_PICOLIBC}" = "y" ]; then
         extra_config+=("--with-default-libc=picolibc")
-        extra_config+=("--enable-stdio=pure")
+        extra_config+=("--enable-cstdio=stdio_pure")
         extra_config+=("--disable-wchar_t")
     fi
 
