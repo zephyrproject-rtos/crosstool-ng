@@ -37,6 +37,13 @@ config USE_PIPES
       Use gcc's option -pipe to use pipes rather than temp files when building
       the toolchain.
 
+config CLEANUP_AFTER_STEP
+  bool
+  prompt "Clean up build directory after each step"
+  help
+    Clean up the build directory after building each component in order to
+    reduce the overall disk space requirement when building.
+
 config EXTRA_CFLAGS_FOR_BUILD
     string
     prompt "Extra build compiler flags"

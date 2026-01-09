@@ -212,6 +212,12 @@ do_cc_core() {
     do_gcc_core_backend "${core_opts[@]}"
 
     CT_Popd
+
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of core C gcc compiler"
+        rm -rf "${CT_BUILD_DIR}/build-cc-gcc-core"
+    fi
+
     CT_EndStep
 }
 
@@ -849,6 +855,12 @@ do_cc_for_build() {
     "${build_final_backend}" "${build_final_opts[@]}"
 
     CT_Popd
+
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of final gcc compiler for build"
+        rm -rf "${CT_BUILD_DIR}/build-cc-gcc-final-build-${CT_BUILD}"
+    fi
+
     CT_EndStep
 }
 
@@ -945,6 +957,11 @@ do_cc_for_host() {
         CT_mkdir_pushd "${CT_BUILD_DIR}/build-cc-gcc-final-movelibs"
         CT_IterateMultilibs gcc_movelibs movelibs
         CT_Popd
+    fi
+
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of final gcc compiler"
+        rm -rf "${CT_BUILD_DIR}/build-cc-gcc-final"
     fi
 
     CT_EndStep

@@ -28,5 +28,11 @@ picolibc_main()
     CT_mkdir_pushd "${CT_BUILD_DIR}/build-libc"
     do_picolibc_common_install
     CT_Popd
+
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of C library"
+        rm -rf "${CT_BUILD_DIR}/build-libc"
+    fi
+
     CT_EndStep
 }

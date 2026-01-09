@@ -50,6 +50,11 @@ do_binutils_for_build() {
         CT_Popd
     fi
 
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of binutils for build"
+        rm -rf "${CT_BUILD_DIR}/build-binutils-build-${CT_BUILD}"
+    fi
+
     CT_EndStep
 }
 
@@ -100,6 +105,11 @@ do_binutils_for_host() {
             ;;
         *)  ;;
     esac
+
+    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+        CT_DoLog EXTRA "Cleaning up build directory of binutils for host"
+        rm -rf "${CT_BUILD_DIR}/build-binutils-host-${CT_HOST}"
+    fi
 
     CT_EndStep
 }
