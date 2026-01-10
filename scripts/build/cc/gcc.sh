@@ -213,10 +213,10 @@ do_cc_core() {
 
     CT_Popd
 
-    if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
-        CT_DoLog EXTRA "Cleaning up build directory of core C gcc compiler"
-        rm -rf "${CT_BUILD_DIR}/build-cc-gcc-core"
-    fi
+    # if [ "${CT_CLEANUP_AFTER_STEP}" = "y" ]; then
+    #     CT_DoLog EXTRA "Cleaning up build directory of core C gcc compiler"
+    #     rm -rf "${CT_BUILD_DIR}/build-cc-gcc-core"
+    # fi
 
     CT_EndStep
 }
