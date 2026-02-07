@@ -15,9 +15,13 @@ picolibc_extract()
 picolibc_headers()
 {
     CT_DoStep INFO "Installing C library headers"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." "${CT_HEADERS_DIR}"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/tinystdio/stdio.h" "${CT_HEADERS_DIR}"
-    CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/tinystdio/stdio-bufio.h" "${CT_HEADERS_DIR}"
+    if [ -d "${CT_SRC_DIR}/picolibc/libc/include" ]; then
+	CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/libc/include/." "${CT_HEADERS_DIR}"
+    else	
+	CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/include/." "${CT_HEADERS_DIR}"
+	CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/tinystdio/stdio.h" "${CT_HEADERS_DIR}"
+	CT_DoExecLog ALL cp -a "${CT_SRC_DIR}/picolibc/newlib/libc/tinystdio/stdio-bufio.h" "${CT_HEADERS_DIR}"
+    fi
     CT_DoExecLog ALL touch "${CT_HEADERS_DIR}"/picolibc.h
     CT_EndStep
 }

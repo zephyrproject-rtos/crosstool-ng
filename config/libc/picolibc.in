@@ -102,6 +102,7 @@ config LIBC_PICOLIBC_RETARGETABLE_LOCKING
 config LIBC_PICOLIBC_EXTRA_SECTIONS
     bool
     prompt "Place each function & data element in their own section"
+    default y
     help
         Place each function & data symbol in their own section. This allows
         the linker to garbage collect unused symbols at link time.
@@ -127,7 +128,7 @@ config LIBC_PICOLIBC_LTO
 
 config LIBC_PICOLIBC_NANO_MALLOC
     bool
-    prompt "Enable Nano Malloc"
+    prompt "Enable Nano Malloc [unused]"
     default y
     help
       PICOLIBC has two implementations of malloc family's functions, one in
