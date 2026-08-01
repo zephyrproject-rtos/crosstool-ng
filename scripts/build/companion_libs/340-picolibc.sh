@@ -34,12 +34,13 @@ NANO_MALLOC:newlib-nano-malloc
         eval var=\$${var}
         argument=${ynarg#*:}
 
-
-        if [ "${var}" = "y" ]; then
-            picolibc_opts+=( "-D$argument=true" )
-        else
-            picolibc_opts+=( "-D$argument=false" )
-        fi
+	if grep -q "$ynarg" "${CT_SRC_DIR}/picolibc/meson_options.txt"; then
+            if [ "${var}" = "y" ]; then
+		picolibc_opts+=( "-D$argument=true" )
+            else
+		picolibc_opts+=( "-D$argument=false" )
+            fi
+	fi
     done
 
     # Check how picolibc wants threading support to be specified
